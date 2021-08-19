@@ -1,0 +1,177 @@
+---
+title: "Competitividad en el Peru "
+author: "Ing. Gorky Florez Castillo"
+date: "19/8/2021"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    social: [ "twitter", "facebook", "whatsapp", "instagram", "telegram", "linkedin", "pinterest" ]
+    source_code: "https://github.com/GorkyFlorez"
+    theme: flatly
+---
+```{r setup, include=FALSE}
+# PACKAGES / LIBRARIES:
+require(pacman)
+pacman::p_load(png,broom,tidyverse,leaflet, leaflet.extras, leaflet.providers,leafem,htmlwidgets, sp,
+               sf,readxl,mapview,RColorBrewer,viridis,Rgb,ggplot2,raster,rmarkdown,flexdashboard,
+               crosstalk, DT,dplyr,htmltools,rgdal, broom,leafem,mapview, Rgb, raster,rmarkdown, 
+               mapedit, tibble, cptcity, openxlsx, flexdashboard, plotly)
+```
+
+Peru
+===========================================================================
+
+Column {data-width=300}
+---------------------------------------------------------------------------
+
+### 
+\
+**INCORE** El Instituto Peruano de Economía (IPE) presenta por noveno año consecutivo el Índice de Competitividad Regional –INCORE 2021– como parte de su esfuerzo por analizar y dar a conocer los avances en el desarrollo económico y social de las regiones del Perú. La compresión y el estudio comparativo de las dinámicas económicas y sociales de las regiones permite identificar su nivel de competitividad relativo y los factores que la determinan. Ello resulta fundamental para la discusión y la toma de decisiones de políticas públicas que impulsen el desarrollo a nivel regional, más aún en un contexto particularmente adverso a raíz de la crisis sanitaria a nivel mundial.
+
+\
+El **INCORE** cuantifica la posición relativa de las 25 regiones a través de seis pilares de competitividad: Entorno Económico, Infraestructura, Salud, Educación, Laboral e Instituciones. Los seis pilares comprenden un total de 40 indicadores, los cuales se construyen a partir de los últimos datos disponibles de las fuentes oficiales. A partir de la edición 2018, se presenta información desagregada para Lima* (comprende a Lima Metropolitana y la Provincia Constitucional del Callao) y Lima Provincias.
+
+\
+El **INCORE** intenta replicar, en la medida de lo posible, la metodología usada por el Foro Económico Mundial para la elaboración del Índice de Competitividad Global. Con dicha metodología, se calcula la dinámica de la región y la diferencia respecto a otras regiones, lo cual permite determinar su nivel de competitividad relativo.
+\
+De esta manera, el índice constituye una fuente de información oportuna que permite analizar las condiciones económicas y sociales de cada región e identificar sus principales fortalezas y debilidades. Con ello, se pueden centrar los esfuerzos e implementar políticas públicas adecuadas que generen un mayor impacto sobre su desarrollo.
+
+
+```{r}
+Peru        =   getData('GADM',country='Peru', level= 1) %>% st_as_sf()
+Competi     <- read.xlsx("Excel/INCORE.xlsx", sheet="Indice de Competitividad Region") 
+Competitivid<- cbind(Peru ,Competi)
+
+pal_colores <- colorBin("YlOrRd",domain = Competitivid$Indice)
+m="https://images.vexels.com/media/users/3/143561/isolated/preview/afa3aa927b63061e3b0222b7dab9cdbf-ubicaci--n-n--utica-norte-flecha-vintage-by-vexels.png"
+tooltip <- sprintf("<strong>%s</strong><br/>%.1f%% Indice de Competitividad",
+                   Competitivid$NAME_1,
+                   Competitivid$Indice)%>%
+  lapply(htmltools::HTML)
+
+Map <- leaflet() %>%
+  addControl(html = "<p><strong><em>MAPA DE COMPETITIVIDAD DEL PERU</em></strong></p>",
+             position = "topright")%>%
+  addLogo(m,url = "https://images.vexels.com/media/users/3/143561/isolated/preview/afa3aa927b63061e3b0222b7dab9cdbf-ubicaci--n-n--utica-norte-flecha-vintage-by-vexels.png",
+          position = "topleft",
+          offset.x = 50,
+          offset.y = 10,
+          width = 100,
+          height = 100)%>%
+  addScaleBar(position = "bottomright",options = scaleBarOptions(maxWidth = 100,
+                                                                 metric = TRUE,
+                                                                 imperial = TRUE,
+                                                                 updateWhenIdle = TRUE))%>%
+  addLegend(position = "bottomleft", colors="red", labels = "Departamentos mas Competitivos", opacity = 1)%>%
+  addLayersControl(baseGroups = c("OSM","Satellite"),
+                   overlayGroups = c("Competitivid"),
+                   position = "topright",
+                   options = layersControlOptions(collapsed = T))%>%
+  addProviderTiles(providers$OpenStreetMap, group = "OSM")%>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satellite")%>%
+  addPolygons(data= Competitivid,
+              color = "white",
+              stroke = T,
+              weight ="1",
+              smoothFactor = 0.3,
+              fillOpacity = 0.7,
+              fillColor = ~pal_colores(Competitivid$Indice),
+              label = tooltip,
+              group = "Competitivid")%>%
+  addLegend(pal = pal_colores, values = Competitivid$Indice,
+            labFormat = labelFormat(suffix = " indi/Dep"),
+            opacity = 0.7, title = 'Leyenda', position = "bottomleft")%>%
+  addMiniMap(tiles = providers$Esri.WorldImagery,toggleDisplay = TRUE)
+
+```
+
+Column
+---------------------------------------------------------------------------
+
+### Mapa de competitividad en el Peru por regiones
+
+```{r map}
+Map
+```
+
+Column
+---------------------------------------------------------------------------
+
+### Barplot de la competitividad 
+
+```{r}
+ggplot(Competitivid, aes(x = reorder(Regiones, +Indice), y = Indice, fill = Indice)) +
+  geom_bar(stat = "identity", color="black") +
+  geom_text(aes(label=Indice), vjust=-0.1, size=3.5)+
+  scale_fill_gradientn(colours = RColorBrewer::brewer.pal(n = 10, name = "YlOrRd")) +
+  coord_flip()+
+  theme_bw()+
+  labs(x="",y="")
+```
+
+
+Information {data-orientation=rows data-icon="fa-info-circle"}
+===================================== 
+
+### Información de datos
+
+A fin de obtener el mejor reflejo de la competitividad regional y garantizar la continuidad de los indicadores, en esta edición del INCORE se han realizado algunos cambios, por lo que los resultados del INCORE 2021 no son comparables con las ediciones anteriores. Para facilitar el análisis comparativo, en los Retratos Regionales incluyen información del ranking por pilar para las cuatro últimas ediciones bajo la nueva metodología.
+
+No obstante, la comparación temporal puede verse limitada en caso varíe la unidad de análisis de un indicador. Por último, cabe mencionar que los indicadores evaluados y resultados obtenidos en las diferentes ediciones del INCORE, bajo la metodología actualizada, se encuentran disponibles en la web www.incoreperu.pe. Dicha información es de libre acceso y la descarga es gratuita.
+
+A continuación, se describen los cambios en la metodología a tener en cuenta.
+
+• Se modificó el indicador de población, obtenido de la Encuesta Nacional de Hogares (ENAHO), que se utiliza en los cálculos de algunas variables. A partir de esta edición, se considera solo a aquellas personas que hayan reportado ser miembros del hogar y que no hayan reportado ser trabajadores del hogar ni pensionistas.
+
+• Se modificó la fuente del indicador de homicidios. Hasta la edición 2019 del INCORE, se utiliza información del número de homicidios reportada por el INEI, que se construye a partir de la información registrada en las dependencias policiales y Ministerio Público. A partir de la edición 2020, se utiliza información de homicidios registrada en el SINADEF, debido a la falta de disponibilidad de datos del indicador reportado por el INEI luego del 2018.
+
+• Por último, para la presente edición, se incorporó el indicador de percepción de inseguridad en reemplazo del indicador percepción de inseguridad de noche debido a que el INEI dejó de recoger información sobre este indicador para el 2020, frente a las restricciones para la movilización durante la noche impuestas en el contexto del Estado de Emergencia.
+
+Disponibilidad de información
+
+A la fecha de publicación de la actual edición del INCORE, algunos indicadores utilizados para la construcción del índice no se encuentran disponibles para el año 2020. Ello responde, en algunos casos, a las dificultades para el recojo y procesamiento de información por parte de las fuentes oficiales en el contexto de la emergencia sanitaria por la pandemia. En particular, los indicadores para los que no se cuenta con información actualizada para el año 2020 son acceso a telefonía e internet móvil, rendimiento escolar en primaria y secundaria, e instituciones educativas con acceso a internet. En dichos casos, el cálculo de los resultados del INCORE 2021 considera la última información disponible al año 2019.
+
+Por otro lado, para el cálculo de la tasa de analfabetismo del año 2020, obtenida a partir de la ENAHO, se empleó un factor de expansión poblacional distinto al utilizado en ediciones pasadas. Este factor especial, cuyo fin es ponderar los datos de las encuestas para estimar indicadores poblacionales, fue construido por el INEI y considera únicamente a las encuestas en las que se aplicó el cuestionario completo de la ENAHO. Es decir, se excluye a aquellas encuestas en las que se aplicó una versión reducida del cuestionario durante los meses de confinamiento.
+
+
+
+### NOTA BIOGRÁFICA
+
+**Gorky florez Castillo**, nacido en el Departamento del Cusco, Provincia de la Convención, Distrito de Santa Ana el 07 de agosto de 1997. Curso sus estudios primarios en la Institución Educativa Juan de la Cruz Monte Salas y los secundarios en el “Glorioso colegio Emblemático Manco II”, de la ciudad de Quillabamba. 
+
+Bachiller con mención en la Carrera Profesional de Ingeniería Forestal y Medio Ambiente de la Universidad Nacional Amazónica de Madre de Dios el año, desde el 23 de diciembre del 2020. Participación activa en Proyectos de investigación u otras actividades que involucren de nuestros recursos Naturales, a la conservación, a la educación y conciencia ambiental, de esta forma contribuir al desarrollo del departamento de Madre de Dios y mi país.
+
+Realizo un artículo de investigación de caracterización morfológica y estructura poblacional de Euterpe precatoria (Arecaceae) en dos tipos de bosque (bosque de tierra firme y bosque inundable publicado en la revista ecuatoriana Bosques Latitud Cero (Florez-castillo, Nieto-ramos y Garate-quispe 2020).
+
+
+
+### Otra información
+Que es  Google Earth Engine
+Google Earth Engine es una plataforma basada en la nube que permite a los usuarios tener un fácil acceso a un archivo de datos de teledetección a escala de petabytes y ejecutar análisis geoespaciales en la infraestructura de Google. Actualmente, Google ofrece soporte solo para Python y JavaScript. Rgee llenará el vacío comenzando a brindar apoyo a R. A continuación, encontrará la comparación entre la sintaxis de rgee y las dos bibliotecas cliente compatibles con Google.
+
+El repositorio de GitHub y el código subyacente de este panel se pueden encontrar aquí. [here]()
+
+Este dashbaord se desarrolló utilizando [R Studio] (https://www.rstudio.com/) y los siguientes paquetes:
+
+* [RMarkdown](https://rmarkdown.rstudio.com/) para análisis reproducibles en documentos de calidad
+*  [flexdashbaord](https://rmarkdown.rstudio.com/flexdashboard/) para formatear en RMarkdown
+* [DT](https://rstudio.github.io/DT/) para tablas interactivas
+* [crosstalk](https://rstudio.github.io/crosstalk/) para widgets html interactivos en RMarkdown
+
+
+Se presenta otros manuales y ejemplos del uso de Google Earth Engine en RStudio
+
+* [Aviso de friaje - (SENAMHI)](https://gorkyflorez.github.io/Aviso_Friaje_MDD/) 
+*  [NDVI de Yungay](https://gorkyflorez.github.io/Google_Earth_Engine_RStudio_/) 
+* [Calcule la tendencia de las luces nocturnas ](https://gorkyflorez.github.io/luces_nocturnas_GEE/) 
+* [Perdida de la cobertura boscosa en la cuenca chonta](https://gorkyflorez.github.io/Analisis_cambio_cobertura_boscosa_microcuenca_chonta/) 
+
+* [INCREMENTO DE TEMPERATURA DIURNA EN LA SELVA](https://gorkyflorez.github.io/Aviso_SENAMHI_155/) 
+*  [NDVI de Yungay](https://gorkyflorez.github.io/Google_Earth_Engine_RStudio_/) 
+* [Índice de agua de diferencia normalizada Sentinel-2 (NDWI)](https://gorkyflorez.github.io/Google_Earth_Engine_NDWI_Dhaka/) 
+* [NDVI en Git de Madre de Dios 2013-2014](https://gorkyflorez.github.io/GEE_NDVI_MDD_Arequi/) 
+* [Modelo digital de elevación](https://gorkyflorez.github.io/GEE_DEM/) 
+* [Gee no supervizado ](https://gorkyflorez.github.io/GEE_Clasificacion_Puerto_Maldonado/) 
+
+
+
